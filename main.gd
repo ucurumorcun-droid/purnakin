@@ -1,7 +1,7 @@
 extends Node3D
 
 var player: CharacterBody3D
-var inventory := {"wood": 0, "stone": 0, "metal": 0}
+var inventory := {"wood": 0, "stone": 0, "metal": 0, "meat": 0, "hide": 0}
 var world_time := 8.0
 var rng := RandomNumberGenerator.new()
 var status_label: Label
@@ -14,10 +14,12 @@ var built_count := 0
 func _ready() -> void:
 	rng.seed = 472991
 	player = $Player
+	player.add_to_group("player")
 	_setup_environment()
 	_build_terrain()
 	_build_water()
 	_spawn_resources()
+	_spawn_animals()
 	_build_ui()
 
 func _process(delta: float) -> void:
@@ -130,8 +132,7 @@ func _spawn_resources() -> void:
 		var x := rng.randf_range(-70, 70)
 		var z := rng.randf_range(-70, 70)
 		var y := height_at(x, z)
-		if y < 0.4:
-			continue
+		if y < 0.4: continue
 		var node := load("res://resource_node.gd").new()
 		add_child(node)
 		node.position = Vector3(x, y, z)
@@ -146,9 +147,27 @@ func _spawn_resources() -> void:
 			node.position = Vector3(x, y, z)
 			node.setup("metal", rng.randi_range(1, 3))
 
+func _spawn_animals() -> void:
+	var animal_script := load("res://animal.gd")
+	for i in range(10):
+		var animal := animal_script.new()
+		animal.species = "deer"
+		var x := rng.randf_range(-58, 58)
+		var z := rng.randf_range(-58, 58)
+		if height_at(x, z) > 1.0:
+			add_child(animal)
+			animal.position = Vector3(x, height_at(x, z) + 0.3, z)
+	for i in range(6):
+		var animal := animal_script.new()
+		animal.species = "boar"
+		var x := rng.randf_range(-62, 62)
+		var z := rng.randf_range(-62, 62)
+		if height_at(x, z) > 1.0:
+			add_child(animal)
+			animal.position = Vector3(x, height_at(x, z) + 0.3, z)
+
 func _handle_gameplay() -> void:
-	if action_cooldown > 0.0 or build_mode:
-		return
+	if action_cooldown > 0.0 or build_mode: return
 	if Input.is_key_pressed(KEY_E):
 		var cam := player.get_viewport().get_camera_3d()
 		var from := cam.global_position
@@ -168,8 +187,7 @@ func _craft_campfire() -> void:
 		inventory.stone -= 3
 		_spawn_campfire(player.global_position + -player.global_transform.basis.z * 2.5)
 		_show_toast("Kamp ateşi üretildi (-5 odun, -3 taş)")
-	else:
-		_show_toast("Kamp ateşi için 5 odun + 3 taş gerekli")
+	else: _show_toast("Kamp ateşi için 5 odun + 3 taş gerekli")
 
 func _spawn_campfire(pos: Vector3) -> void:
 	var body := StaticBody3D.new()
@@ -208,8 +226,7 @@ func _spawn_campfire(pos: Vector3) -> void:
 
 func _update_build_preview() -> void:
 	if not build_mode:
-		if build_preview:
-			build_preview.visible = false
+		if build_preview: build_preview.visible = false
 		return
 	if not build_preview:
 		build_preview = MeshInstance3D.new()
@@ -279,12 +296,11 @@ func _build_ui() -> void:
 
 func _update_ui() -> void:
 	if status_label:
-		status_label.text = "Odun %d   Taş %d   Metal %d   |   Yapılar %d   |   Saat %02d:%02d" % [inventory.wood, inventory.stone, inventory.metal, built_count, int(world_time), int((world_time - int(world_time)) * 60.0)]
+		status_label.text = "Odun %d   Taş %d   Metal %d   Et %d   Post %d   |   Yapılar %d   |   Saat %02d:%02d" % [inventory.wood, inventory.stone, inventory.metal, inventory.meat, inventory.hide, built_count, int(world_time), int((world_time - int(world_time)) * 60.0)]
 
 func _show_toast(message: String) -> void:
 	if toast_label:
 		toast_label.text = message
 		get_tree().create_timer(2.0).timeout.connect(func():
-			if toast_label:
-				toast_label.text = ""
+			if toast_label: toast_label.text = ""
 		)

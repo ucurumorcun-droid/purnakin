@@ -14,7 +14,6 @@ var health := 100.0
 var hud: Label
 
 @onready var head: Node3D = $Head
-@onready var camera: Camera3D = $Head/Camera3D
 
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -35,7 +34,9 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 	if Input.is_key_pressed(KEY_SPACE) and is_on_floor():
 		velocity.y = JUMP_VELOCITY
-	var input_vec := Input.get_vector(KEY_A, KEY_D, KEY_W, KEY_S)
+	var x := float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A))
+	var z := float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W))
+	var input_vec := Vector2(x, z).normalized()
 	var direction := (transform.basis * Vector3(input_vec.x, 0, input_vec.y)).normalized()
 	var sprinting := Input.is_key_pressed(KEY_SHIFT) and direction.length() > 0.1 and stamina > 1.0
 	var speed := SPRINT_SPEED if sprinting else SPEED
@@ -71,7 +72,7 @@ func _build_hud() -> void:
 	hud.add_theme_color_override("font_color", Color(0.92, 0.96, 0.98))
 	layer.add_child(hud)
 	var help := Label.new()
-	help.text = "WASD Hareket  |  SHIFT Koş  |  SPACE Zıpla  |  Sol Tık Etkileşim  |  ESC Fare"
+	help.text = "WASD Hareket  |  SHIFT Koş  |  SPACE Zıpla  |  E Kaynak Topla  |  B Yapı  |  ESC Fare"
 	help.position = Vector2(24, 690)
 	help.add_theme_font_size_override("font_size", 15)
 	layer.add_child(help)

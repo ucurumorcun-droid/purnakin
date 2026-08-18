@@ -6,42 +6,36 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
-  export:
+  build:
     runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.5.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Godot Web Export
-        uses: firebelley/godot-export@v6.1.0
-        with:
-          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.5-stable/Godot_v4.5-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.5-stable/Godot_v4.5-stable_export_templates.tpz
-          relative_project_path: ./
-          archive_output: false
-          presets_to_export: Web
-
-      - name: Prepare Pages files
-        shell: bash
+      - name: Export Web
         run: |
           mkdir -p public
-          cp -r web/* public/ 2>/dev/null || true
-          find . -maxdepth 2 -type f \( -name '*.html' -o -name '*.wasm' -o -name '*.pck' -o -name '*.js' \) -not -path './.git/*' -exec cp {} public/ \;
-
+          godot --headless --path . --editor --quit
+          godot --headless --path . --export-release Web public/index.html
+          test -f public/index.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: public
 
   deploy:
-    needs: export
+    needs: build
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -1,0 +1,40 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource path="res://main.gd" type="Script" id="1_main"]
+[ext_resource path="res://player.gd" type="Script" id="2_player"]
+
+[sub_resource type="CapsuleShape3D" id="Capsule_player"]
+radius = 0.45
+height = 1.8
+
+[node name="Purnakin" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="Player" type="CharacterBody3D" parent="."]
+position = Vector3(0, 5, 18)
+script = ExtResource("2_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+position = Vector3(0, 0.9, 0)
+shape = SubResource("Capsule_player")
+
+[node name="Head" type="Node3D" parent="Player"]
+position = Vector3(0, 1.55, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Player/Head"]
+current = true
+fov = 78.0
+near = 0.05
+far = 900.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-52, -28, 0)
+light_energy = 1.15
+shadow_enabled = true
+
+[node name="Moon" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(35, 150, 0)
+light_energy = 0.08
+shadow_enabled = true

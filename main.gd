@@ -6,6 +6,9 @@ var world_time := 8.0
 var built_count := 0
 var status_label: Label
 var rng := RandomNumberGenerator.new()
+var interact_cooldown := 0.0
+var build_mode := false
+var build_key_down := false
 
 func _ready() -> void:
 	rng.seed = 472991
@@ -18,10 +21,68 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	world_time = fmod(world_time + delta * 0.045, 24.0)
+	interact_cooldown = max(0.0, interact_cooldown - delta)
 	_update_sun()
-	_handle_interaction()
+	_handle_input()
 	if status_label:
-		status_label.text = "Envanter  Odun: %d   Taş: %d   Metal: %d   |   B: Yapı modu" % [inventory.wood, inventory.stone, inventory.metal]
+		status_label.text = "Envanter  Odun: %d   Taş: %d   Metal: %d   |   %s" % [inventory.wood, inventory.stone, inventory.metal, "YAPI MODU: Sol Tık yerleştir" if build_mode else "E: Kaynak topla | B: Yapı modu"]
+
+func _handle_input() -> void:
+	var b_down := Input.is_key_pressed(KEY_B)
+	if b_down and not build_key_down:
+		build_mode = not build_mode
+	build_key_down = b_down
+	if Input.is_key_pressed(KEY_E) and interact_cooldown <= 0.0:
+		_harvest_target()
+		interact_cooldown = 0.25
+	if build_mode and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and interact_cooldown <= 0.0:
+		_place_building()
+		interact_cooldown = 0.35
+
+func _harvest_target() -> void:
+	var camera := player.get_viewport().get_camera_3d()
+	var from := camera.global_position
+	var to := from - camera.global_transform.basis.z * 4.0
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.exclude = [player]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit and hit.collider.has_method("harvest"):
+		var loot: Dictionary = hit.collider.harvest()
+		inventory[loot.type] += loot.amount
+
+func _place_building() -> void:
+	if inventory.wood < 4:
+		return
+	var camera := player.get_viewport().get_camera_3d()
+	var from := camera.global_position
+	var to := from - camera.global_transform.basis.z * 6.0
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.exclude = [player]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit:
+		return
+	var pos: Vector3 = hit.position
+	pos.y += 1.0
+	var building := MeshInstance3D.new()
+	var cube := BoxMesh.new()
+	cube.size = Vector3(2.8, 2.0, 0.25)
+	building.mesh = cube
+	building.position = pos
+	building.rotation.y = player.rotation.y
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.32, 0.16, 0.065)
+	mat.roughness = 0.88
+	building.material_override = mat
+	add_child(building)
+	var body := StaticBody3D.new()
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = cube.size
+	collision.shape = shape
+	body.add_child(collision)
+	building.add_child(body)
+	inventory.wood -= 4
+	built_count += 1
 
 func _setup_environment() -> void:
 	var env := Environment.new()
@@ -126,18 +187,6 @@ func _spawn_resources() -> void:
 			add_child(node)
 			node.position = Vector3(x, y, z)
 			node.setup("metal", rng.randi_range(1, 3))
-
-func _handle_interaction() -> void:
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and Input.is_key_pressed(KEY_E):
-		var from := player.get_viewport().get_camera_3d().global_position
-		var to := from - player.get_viewport().get_camera_3d().global_transform.basis.z * 4.0
-		var query := PhysicsRayQueryParameters3D.create(from, to)
-		query.exclude = [player]
-		var hit := get_world_3d().direct_space_state.intersect_ray(query)
-		if hit and hit.collider.has_method("harvest"):
-			var loot: Dictionary = hit.collider.harvest()
-			inventory[loot.type] += loot.amount
-			await get_tree().create_timer(0.15).timeout
 
 func _update_sun() -> void:
 	var daylight := sin((world_time - 6.0) / 24.0 * TAU)
